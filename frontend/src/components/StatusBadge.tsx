@@ -33,7 +33,7 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({
     const hasKey = Boolean(currentProviderConfig.api_key && currentProviderConfig.api_key.trim());
     if (hasKey) {
       providerPillClass = 'status-pill-cloud-active';
-      providerLabel = currentProviderConfig.model || 'Gemini 2.5 Flash';
+      providerLabel = currentProviderConfig.model || 'Gemini 3.8 Flash';
     } else {
       providerPillClass = 'status-pill-warning';
       providerLabel = 'Key Needed';

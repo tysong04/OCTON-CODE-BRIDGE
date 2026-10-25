@@ -16,7 +16,7 @@ import {
   ShieldCheck,
   Radio,
 } from 'lucide-react';
-import { ProviderConfig, ProviderTestResponse, ProviderType } from '../types/translation';
+import { ProviderConfig, ProviderTestResponse, ProviderType, ModelOption } from '../types/translation';
 import { testProvider } from '../services/api';
 
 interface ProviderSettingsModalProps {
@@ -27,9 +27,10 @@ interface ProviderSettingsModalProps {
   onClearKey: () => void;
 }
 
-const GEMINI_MODELS = [
-  { id: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash (Recommended - Fast & Accurate Code Translation)' },
-  { id: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro (Deep Code Reasoning & Architecture)' },
+const DEFAULT_GEMINI_MODELS: ModelOption[] = [
+  { id: 'gemini-3.8-flash', label: 'Gemini 3.8 Flash (Recommended - Advanced Coding & High Speed)' },
+  { id: 'gemini-3.5-flash-lite', label: 'Gemini 3.5 Flash-Lite (High Throughput & Efficiency)' },
+  { id: 'gemini-3.1-pro', label: 'Gemini 3.1 Pro (Deep Logical & Architectural Reasoning)' },
   { id: 'gemini-flash-latest', label: 'Gemini Flash Latest (Dynamic Alias)' },
 ];
 
@@ -43,8 +44,9 @@ export const ProviderSettingsModal: React.FC<ProviderSettingsModalProps> = ({
   const [selectedProvider, setSelectedProvider] = useState<ProviderType>(config.provider);
   const [apiKey, setApiKey] = useState<string>(config.api_key || '');
   const [showApiKey, setShowApiKey] = useState<boolean>(false);
+  const [geminiModels, setGeminiModels] = useState<ModelOption[]>(DEFAULT_GEMINI_MODELS);
   const [geminiModel, setGeminiModel] = useState<string>(
-    config.provider === 'gemini' && config.model ? config.model : 'gemini-2.5-flash'
+    config.provider === 'gemini' && config.model ? config.model : 'gemini-3.8-flash'
   );
   const [ollamaBaseUrl, setOllamaBaseUrl] = useState<string>(
     config.base_url || 'http://localhost:11434'
@@ -109,6 +111,16 @@ export const ProviderSettingsModal: React.FC<ProviderSettingsModalProps> = ({
       });
 
       setTestResult(res);
+
+      if (selectedProvider === 'gemini' && res.available_models && res.available_models.length > 0) {
+        setGeminiModels(res.available_models);
+        const isCurrentAvailable = res.available_models.some((m) => m.id === geminiModel);
+        if (!isCurrentAvailable || res.error_type === 'ModelUnavailable') {
+          const has38Flash = res.available_models.some((m) => m.id === 'gemini-3.8-flash');
+          const autoModel = has38Flash ? 'gemini-3.8-flash' : res.available_models[0].id;
+          setGeminiModel(autoModel);
+        }
+      }
     } catch (err: unknown) {
       setTestResult({
         valid: false,
@@ -321,6 +333,11 @@ export const ProviderSettingsModal: React.FC<ProviderSettingsModalProps> = ({
               <div className="form-group">
                 <label htmlFor="gemini-model-select" className="form-label">
                   <span className="label-text">Gemini Model</span>
+                  <span className="form-help">
+                    {testResult?.available_models && testResult.available_models.length > 0
+                      ? `${testResult.available_models.length} active models discovered for key`
+                      : 'Supports dynamic model discovery on test'}
+                  </span>
                 </label>
                 <select
                   id="gemini-model-select"
@@ -328,7 +345,12 @@ export const ProviderSettingsModal: React.FC<ProviderSettingsModalProps> = ({
                   value={geminiModel}
                   onChange={(e) => setGeminiModel(e.target.value)}
                 >
-                  {GEMINI_MODELS.map((m) => (
+                  {!geminiModels.some((m) => m.id === geminiModel) && (
+                    <option value={geminiModel}>
+                      {geminiModel} (Custom / Configured)
+                    </option>
+                  )}
+                  {geminiModels.map((m) => (
                     <option key={m.id} value={m.id}>
                       {m.label}
                     </option>

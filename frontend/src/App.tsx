@@ -43,7 +43,7 @@ export const App: React.FC = () => {
   // In-memory provider configuration (Never saved to localStorage or cookies)
   const [providerConfig, setProviderConfig] = useState<ProviderConfig>({
     provider: 'gemini',
-    model: 'gemini-2.5-flash',
+    model: 'gemini-3.8-flash',
     consent_granted: false,
   });
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);

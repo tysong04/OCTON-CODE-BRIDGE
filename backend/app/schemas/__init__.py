@@ -9,6 +9,7 @@ from .translation import (
     ProviderTestResponse,
     HealthResponse,
     ProviderInfo,
+    ModelOption,
 )
 
 __all__ = [
@@ -21,4 +22,5 @@ __all__ = [
     "ProviderTestResponse",
     "HealthResponse",
     "ProviderInfo",
+    "ModelOption",
 ]

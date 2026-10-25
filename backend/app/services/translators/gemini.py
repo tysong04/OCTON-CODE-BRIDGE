@@ -5,7 +5,12 @@ import time
 from typing import Optional, List, Dict, Any
 import httpx
 
-from app.schemas.translation import Language, ProviderStatusResponse, ProviderTestResponse
+from app.schemas.translation import (
+    Language,
+    ProviderStatusResponse,
+    ProviderTestResponse,
+    ModelOption,
+)
 from app.services.translators.base import (
     BaseTranslationProvider,
     TranslationResult,
@@ -15,8 +20,8 @@ from app.services.translators.base import (
 
 logger = logging.getLogger("ocb.translators.gemini")
 
-DEFAULT_GEMINI_MODEL = "gemini-2.5-flash"
-SUPPORTED_MODELS = ["gemini-2.5-flash", "gemini-2.5-pro", "gemini-flash-latest"]
+DEFAULT_GEMINI_MODEL = "gemini-3.8-flash"
+FALLBACK_SUGGESTIONS = ["gemini-3.8-flash", "gemini-3.5-flash-lite", "gemini-3.1-pro", "gemini-flash-latest"]
 GEMINI_API_BASE = "https://generativelanguage.googleapis.com/v1beta"
 
 
@@ -53,11 +58,12 @@ class GeminiTranslationProvider(BaseTranslationProvider):
 
     async def test_connection(self) -> ProviderTestResponse:
         """
-        Actively test the Gemini API key against the official model information endpoint.
+        Actively test the Gemini API key against Google's models discovery endpoint.
+        Dynamically discovers models supporting generateContent and verifies accessibility.
         Does NOT expose the API key in error messages or logs.
         """
-        # Endpoint: GET /v1beta/models/{model}
-        url = f"{GEMINI_API_BASE}/models/{self.model}"
+        # Endpoint: GET /v1beta/models
+        url = f"{GEMINI_API_BASE}/models"
         headers = {
             "x-goog-api-key": self.api_key,
             "User-Agent": "OCB-OctonCodeBridge/0.1.0"
@@ -66,18 +72,64 @@ class GeminiTranslationProvider(BaseTranslationProvider):
         try:
             async with httpx.AsyncClient(timeout=10.0) as client:
                 res = await client.get(url, headers=headers)
-                
+
                 if res.status_code == 200:
                     data = res.json()
-                    display_name = data.get("displayName", self.model)
+                    raw_models = data.get("models", [])
+
+                    # Dynamically filter models supporting generateContent
+                    available_options: List[ModelOption] = []
+                    available_ids: List[str] = []
+                    for m in raw_models:
+                        methods = m.get("supportedGenerationMethods", [])
+                        if "generateContent" in methods:
+                            full_name = m.get("name", "")
+                            m_id = full_name.replace("models/", "").strip()
+                            d_name = m.get("displayName", m_id)
+                            available_options.append(ModelOption(id=m_id, label=f"{d_name} ({m_id})"))
+                            available_ids.append(m_id)
+
+                    if not available_ids:
+                        return ProviderTestResponse(
+                            valid=False,
+                            provider="gemini",
+                            model=self.model,
+                            message="API key verified, but no models supporting 'generateContent' were returned.",
+                            details="Ensure Generative Language API is enabled on your project in Google Cloud / AI Studio.",
+                            error_type="NoAvailableModels",
+                            available_models=[]
+                        )
+
+                    # Check if configured model is in the available list
+                    clean_model = self.model.replace("models/", "").strip()
+                    model_found = clean_model in available_ids or any(
+                        m.endswith(f"/{clean_model}") for m in available_ids
+                    )
+
+                    if clean_model and not model_found:
+                        # Recommend a model that actually exists in available_ids, NOT the failed model
+                        recommended = "gemini-3.8-flash" if "gemini-3.8-flash" in available_ids else available_ids[0]
+                        sample_available = [m for m in available_ids if m != clean_model][:4]
+                        return ProviderTestResponse(
+                            valid=False,
+                            provider="gemini",
+                            model=self.model,
+                            message=f"Model '{self.model}' is not available for this API key. Recommended alternative: '{recommended}'.",
+                            details=f"Your key has access to {len(available_ids)} models, including: {', '.join(sample_available)}. Please select an active model in settings.",
+                            error_type="ModelUnavailable",
+                            available_models=available_options
+                        )
+
                     return ProviderTestResponse(
                         valid=True,
                         provider="gemini",
                         model=self.model,
-                        message=f"Connected successfully to Google Gemini ({display_name}).",
+                        message=f"Connected successfully to Google Gemini. Verified access to {len(available_ids)} active models.",
                         details=None,
-                        error_type=None
+                        error_type=None,
+                        available_models=available_options
                     )
+
                 elif res.status_code in (400, 401):
                     return ProviderTestResponse(
                         valid=False,
@@ -93,17 +145,8 @@ class GeminiTranslationProvider(BaseTranslationProvider):
                         provider="gemini",
                         model=self.model,
                         message="API key forbidden or permission denied.",
-                        details="Ensure the API key has Generative Language API enabled and is not IP-restricted.",
+                        details="Ensure the API key has Generative Language API enabled and is not IP or referer restricted.",
                         error_type="Forbidden"
-                    )
-                elif res.status_code == 404:
-                    return ProviderTestResponse(
-                        valid=False,
-                        provider="gemini",
-                        model=self.model,
-                        message=f"Model '{self.model}' not found in Gemini API.",
-                        details=f"Supported models include: {', '.join(SUPPORTED_MODELS)}.",
-                        error_type="ModelNotFound"
                     )
                 elif res.status_code == 429:
                     return ProviderTestResponse(
@@ -243,8 +286,11 @@ class GeminiTranslationProvider(BaseTranslationProvider):
                 "Google Gemini request forbidden or quota suspended for this API key."
             )
         elif res.status_code == 404:
+            alt_candidates = [m for m in FALLBACK_SUGGESTIONS if m != self.model]
+            suggestions = f" (such as {', '.join(alt_candidates[:2])})" if alt_candidates else ""
             raise TranslationExecutionError(
-                f"Configured Gemini model '{self.model}' was not found. Please select a supported model such as 'gemini-2.5-flash'."
+                f"Configured Gemini model '{self.model}' was not found or is unavailable for your API key. "
+                f"Please open Provider Settings to select an active model{suggestions} or click 'Test Connection' to refresh your available models."
             )
         elif res.status_code == 429:
             raise TranslationExecutionError(

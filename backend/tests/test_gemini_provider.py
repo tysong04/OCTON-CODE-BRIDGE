@@ -95,7 +95,7 @@ async def test_gemini_successful_mocked_translation(client: TestClient):
             "provider_config": {
                 "provider": "gemini",
                 "api_key": "valid-test-key-xyz",
-                "model": "gemini-2.5-flash",
+                "model": "gemini-3.8-flash",
                 "consent_granted": True
             }
         }
@@ -104,7 +104,7 @@ async def test_gemini_successful_mocked_translation(client: TestClient):
         data = response.json()
         assert data["translated_code"] == "console.log('hello from gemini');"
         assert data["provider_info"]["provider"] == "gemini"
-        assert data["provider_info"]["model"] == "gemini-2.5-flash"
+        assert data["provider_info"]["model"] == "gemini-3.8-flash"
         assert data["provider_info"]["verified"] is False
 
 
@@ -122,7 +122,7 @@ async def test_gemini_rate_limit_handled(client: TestClient):
             "provider_config": {
                 "provider": "gemini",
                 "api_key": "valid-test-key-xyz",
-                "model": "gemini-2.5-flash",
+                "model": "gemini-3.8-flash",
                 "consent_granted": True
             }
         }
@@ -130,6 +130,35 @@ async def test_gemini_rate_limit_handled(client: TestClient):
         assert response.status_code == 502
         data = response.json()
         assert "rate limit or quota" in data["detail"]["message"].lower()
+
+
+@pytest.mark.asyncio
+async def test_gemini_404_error_does_not_recommend_same_model(client: TestClient):
+    """Verify that a 404 from Gemini generates an actionable error that never recommends the failed model."""
+    mock_resp = MagicMock(spec=httpx.Response)
+    mock_resp.status_code = 404
+
+    with patch("httpx.AsyncClient.post", return_value=mock_resp):
+        payload = {
+            "source_lang": "python",
+            "target_lang": "javascript",
+            "code": "print('test')",
+            "provider_config": {
+                "provider": "gemini",
+                "api_key": "valid-test-key-xyz",
+                "model": "gemini-2.5-flash",
+                "consent_granted": True
+            }
+        }
+        response = client.post("/api/translate", json=payload)
+        assert response.status_code == 502
+        data = response.json()
+        error_msg = data["detail"]["message"]
+        # Error must mention that gemini-2.5-flash was not found
+        assert "gemini-2.5-flash" in error_msg
+        # But suggestions must NEVER recommend gemini-2.5-flash!
+        assert "such as gemini-2.5-flash" not in error_msg
+        assert "gemini-3.8-flash" in error_msg
 
 
 def test_dynamic_mock_provider_override(client: TestClient):
@@ -181,7 +210,7 @@ async def test_gemini_javascript_to_python_translation(client: TestClient):
             "provider_config": {
                 "provider": "gemini",
                 "api_key": "valid-test-key-xyz",
-                "model": "gemini-2.5-pro",
+                "model": "gemini-3.8-flash",
                 "consent_granted": True
             }
         }
@@ -190,7 +219,7 @@ async def test_gemini_javascript_to_python_translation(client: TestClient):
         data = response.json()
         assert "def greet" in data["translated_code"]
         assert data["provider_info"]["provider"] == "gemini"
-        assert data["provider_info"]["model"] == "gemini-2.5-pro"
+        assert data["provider_info"]["model"] == "gemini-3.8-flash"
 
 
 @pytest.mark.asyncio
@@ -198,16 +227,25 @@ async def test_provider_test_endpoint_gemini_valid_key(client: TestClient):
     mock_resp = MagicMock(spec=httpx.Response)
     mock_resp.status_code = 200
     mock_resp.json.return_value = {
-        "name": "models/gemini-2.5-flash",
-        "displayName": "Gemini 2.5 Flash",
-        "supportedGenerationMethods": ["generateContent"]
+        "models": [
+            {
+                "name": "models/gemini-3.8-flash",
+                "displayName": "Gemini 3.8 Flash",
+                "supportedGenerationMethods": ["generateContent"]
+            },
+            {
+                "name": "models/gemini-3.5-flash-lite",
+                "displayName": "Gemini 3.5 Flash-Lite",
+                "supportedGenerationMethods": ["generateContent"]
+            }
+        ]
     }
 
     with patch("httpx.AsyncClient.get", return_value=mock_resp):
         payload = {
             "provider": "gemini",
             "api_key": "AIzaSyFakeValidKey123",
-            "model": "gemini-2.5-flash"
+            "model": "gemini-3.8-flash"
         }
         response = client.post("/api/providers/test", json=payload)
         assert response.status_code == 200
@@ -215,6 +253,39 @@ async def test_provider_test_endpoint_gemini_valid_key(client: TestClient):
         assert data["valid"] is True
         assert data["provider"] == "gemini"
         assert "connected successfully" in data["message"].lower()
+        assert len(data["available_models"]) == 2
+        assert data["available_models"][0]["id"] == "gemini-3.8-flash"
+
+
+@pytest.mark.asyncio
+async def test_provider_test_endpoint_gemini_unavailable_model(client: TestClient):
+    """Verify that testing an unavailable model returns valid=False and recommends an available model."""
+    mock_resp = MagicMock(spec=httpx.Response)
+    mock_resp.status_code = 200
+    mock_resp.json.return_value = {
+        "models": [
+            {
+                "name": "models/gemini-3.8-flash",
+                "displayName": "Gemini 3.8 Flash",
+                "supportedGenerationMethods": ["generateContent"]
+            }
+        ]
+    }
+
+    with patch("httpx.AsyncClient.get", return_value=mock_resp):
+        payload = {
+            "provider": "gemini",
+            "api_key": "AIzaSyFakeValidKey123",
+            "model": "gemini-2.5-flash"  # Not in the returned models!
+        }
+        response = client.post("/api/providers/test", json=payload)
+        assert response.status_code == 200
+        data = response.json()
+        assert data["valid"] is False
+        assert data["error_type"] == "ModelUnavailable"
+        assert "gemini-3.8-flash" in data["message"]
+        # Must not recommend the same failed model
+        assert "alternative: 'gemini-2.5-flash'" not in data["message"]
 
 
 @pytest.mark.asyncio
@@ -227,7 +298,7 @@ async def test_provider_test_endpoint_gemini_invalid_key_400(client: TestClient)
         payload = {
             "provider": "gemini",
             "api_key": "invalid-bad-key",
-            "model": "gemini-2.5-flash"
+            "model": "gemini-3.8-flash"
         }
         response = client.post("/api/providers/test", json=payload)
         assert response.status_code == 200

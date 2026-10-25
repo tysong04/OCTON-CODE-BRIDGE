@@ -106,6 +106,11 @@ class ProviderTestRequest(BaseModel):
     base_url: Optional[str] = Field(default=None, description="Custom base URL for Ollama")
 
 
+class ModelOption(BaseModel):
+    id: str
+    label: str
+
+
 class ProviderTestResponse(BaseModel):
     valid: bool
     provider: str
@@ -113,6 +118,7 @@ class ProviderTestResponse(BaseModel):
     message: str
     details: Optional[str] = None
     error_type: Optional[str] = None
+    available_models: Optional[List[ModelOption]] = None
 
 
 class HealthResponse(BaseModel):

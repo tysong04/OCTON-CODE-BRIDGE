@@ -24,6 +24,11 @@ export interface ProviderTestRequest {
   base_url?: string;
 }
 
+export interface ModelOption {
+  id: string;
+  label: string;
+}
+
 export interface ProviderTestResponse {
   valid: boolean;
   provider: string;
@@ -31,6 +36,7 @@ export interface ProviderTestResponse {
   message: string;
   details?: string | null;
   error_type?: string | null;
+  available_models?: ModelOption[] | null;
 }
 
 export interface ProviderInfo {
