@@ -25,14 +25,14 @@
 │   - Size & Language Pair Validation                    │
 └───────────────────────────┬────────────────────────────┘
                             │
-              ┌─────────────┴─────────────┐
-              ▼                           ▼
-┌───────────────────────────┐ ┌───────────────────────────┐
-│ OllamaTranslationProvider │ │  MockTranslationProvider  │
-│ - Local LLM Daemon        │ │ - Fast, deterministic     │
-│ - http://localhost:11434  │ │   offline test suite      │
-│ - e.g. qwen2.5-coder:7b   │ │ - Zero setup required     │
-└───────────────────────────┘ └───────────────────────────┘
+        ┌───────────────────┼───────────────────┐
+        ▼                   ▼                   ▼
+┌───────────────────┐ ┌───────────────────┐ ┌───────────────────┐
+│  GeminiProvider   │ │  OllamaProvider   │ │   MockProvider    │
+│ - Google REST API │ │ - Local LLM       │ │ - Deterministic   │
+│ - Dynamic Catalog │ │ - http://127.0.0.1│ │   offline test    │
+│ - gemini-3.8-flash│ │ - qwen2.5-coder   │ │ - Zero setup req  │
+└───────────────────┘ └───────────────────┘ └───────────────────┘
 ```
 
 ---
@@ -46,7 +46,7 @@ class BaseTranslationProvider(ABC):
     @property
     @abstractmethod
     def name(self) -> str:
-        """Name of provider ('ollama', 'mock')."""
+        """Name of provider ('gemini', 'ollama', 'mock')."""
         pass
 
     @abstractmethod
@@ -67,12 +67,19 @@ class BaseTranslationProvider(ABC):
 ```
 
 ### Providers Implemented:
-1. **`OllamaTranslationProvider`**:
+1. **`GeminiTranslationProvider`**:
+   - Communicates with Google's Generative Language REST APIs (`https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent`).
+   - Dynamic model discovery via `GET https://generativelanguage.googleapis.com/v1beta/models` with API-key-specific catalog filtering for `generateContent`.
+   - Defaults to `gemini-3.8-flash`, with support for `gemini-3.5-flash-lite`, `gemini-3.1-pro`, and other models enabled on the user's key.
+   - Structured JSON schema enforcement with regex markdown block fallback.
+   - Explicit user consent required before sending code to cloud endpoints.
+   - Zero credential persistence (keys kept only in client RAM and passed per-request).
+2. **`OllamaTranslationProvider`**:
    - Queries Ollama's `/api/tags` endpoint to detect daemon liveness and verify that the target model is installed.
    - Dispatches prompt to `/api/generate` with strict JSON constraints.
    - Parses code, explanations, and warnings, falling back to fence extraction if needed.
    - Never fails silently: returns exact step-by-step shell commands (`ollama pull <model>`) if the service or model is missing.
-2. **`MockTranslationProvider`**:
+3. **`MockTranslationProvider`**:
    - Provides deterministic translation and mock status toggling for automated CI/CD and offline unit testing without requiring GPU or Ollama runtime.
 
 ---

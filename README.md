@@ -10,7 +10,7 @@ OCB is a developer-focused code translation tool designed to translate snippets 
 
 - **Bidirectional Translation**: Seamless conversion between Python 3 and JavaScript (ES6+).
 - **Multi-Provider AI Architecture**:
-  - **Google Gemini**: Instant, cloud-powered translation with support for `gemini-1.5-flash`, `gemini-2.0-flash`, and `gemini-1.5-pro`. No local GPU or Ollama daemon required.
+  - **Google Gemini**: Instant, cloud-powered translation with dynamic model discovery. Defaults to `gemini-3.8-flash` (recommended for coding & high speed) with support for `gemini-3.5-flash-lite`, `gemini-3.1-pro`, and other models available to your key. No local GPU or Ollama daemon required.
   - **Local Ollama**: 100% private, offline inference using `qwen2.5-coder:7b` or custom models.
   - **Mock Engine**: Instant offline structural translation for fast UI verification and testing.
 - **Provider Settings Interface**:
@@ -164,8 +164,8 @@ OCB gives you total freedom in how translation is executed:
    - Click the provider status badge in the header or the **Provider** button in the toolbar.
    - Select **Google Gemini**.
    - Paste your Gemini API key (from [Google AI Studio](https://aistudio.google.com)).
-   - Select your preferred model (`gemini-1.5-flash`, `gemini-2.0-flash`, or `gemini-1.5-pro`).
-   - Click **Test Connection** to verify key validity against the API.
+   - Select your preferred model (`gemini-3.8-flash`, `gemini-3.5-flash-lite`, or `gemini-3.1-pro`), or let dynamic discovery load active models.
+   - Click **Test Connection** to verify key validity against Google's API catalog.
    - Check the **Consent to transmit code** checkbox.
    - Click **Apply & Use Provider**.
    - *Note: Your key is held only in browser memory and is purged as soon as you close the tab or click "Clear API Key".*
@@ -189,7 +189,7 @@ OCB gives you total freedom in how translation is executed:
 .\backend\.venv\Scripts\python -m pytest backend/tests -v
 ```
 
-All 24 test cases run offline without requiring external network connections or a running Ollama daemon:
+All 26 test cases run offline without requiring external network connections or a running Ollama daemon:
 - Health and root endpoint verification
 - Schema validations (empty code, whitespace rejection, size bounds)
 - Provider status check and tag normalization
@@ -197,6 +197,7 @@ All 24 test cases run offline without requiring external network connections or 
 - Gemini missing key validation
 - Gemini mock-assisted translations (Python &rarr; JS and JS &rarr; Python)
 - Gemini rate-limit and quota error mapping
+- Dynamic model discovery catalog tests and 404 non-repeating model recommendation tests
 - Provider connection test endpoint tests
 
 ### Frontend Build & Typecheck
