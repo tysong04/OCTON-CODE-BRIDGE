@@ -1,21 +1,35 @@
 # OCB — Octon Code Bridge
 
-> **Private, local AI-powered code translator between Python and JavaScript.**
+> **Privacy-first, developer-focused code translator between Python and JavaScript.**
 
-OCB is a developer-focused code translation tool designed to translate snippets and single source files cleanly between **Python and JavaScript** in both directions. It emphasizes local AI inference via **Ollama**, ensuring complete data privacy with no external cloud API dependencies or paid subscription keys.
+OCB is a developer-focused code translation tool designed to translate snippets and single source files cleanly between **Python and JavaScript** in both directions. It supports **Local AI inference via Ollama**, **Cloud AI inference via Google Gemini**, and a deterministic **Mock Translation Engine** for offline test environments.
 
 ---
 
 ## Features
 
 - **Bidirectional Translation**: Seamless conversion between Python 3 and JavaScript (ES6+).
-- **Single-File Upload & Paste**: Upload `.py` or `.js` source files (up to 64 KB) or type directly in the editor.
-- **Custom Instructions**: Provide fine-grained constraints (e.g., `"use async/await"`, `"prefer arrow functions"`, `"explain assumptions"`).
-- **Explanation & Caveats**: Detailed walkthrough of language idiom differences, edge cases, and limitations.
-- **Copy & Download**: One-click clipboard copy and file export.
-- **Live Connection Indicators**: Instant visibility into FastAPI backend and local Ollama model readiness.
-- **Safe & Private**: Runs completely on your machine. Untrusted code is never executed, and source code is never logged.
-- **Modular Provider Architecture**: Easily swap between Ollama and mock/offline providers.
+- **Multi-Provider AI Architecture**:
+  - **Google Gemini**: Instant, cloud-powered translation with support for `gemini-1.5-flash`, `gemini-2.0-flash`, and `gemini-1.5-pro`. No local GPU or Ollama daemon required.
+  - **Local Ollama**: 100% private, offline inference using `qwen2.5-coder:7b` or custom models.
+  - **Mock Engine**: Instant offline structural translation for fast UI verification and testing.
+- **Provider Settings Interface**:
+  - In-app provider switcher modal with model selection.
+  - Password-masked API key input with show/hide toggle.
+  - Instant "Test Connection" button (`POST /api/providers/test`) with status feedback.
+  - Immediate "Clear API Key" action that purges keys from memory immediately.
+  - Explicit data transmission disclosure and mandatory consent checkbox for cloud services.
+- **Privacy & Security First**:
+  - Untrusted code is **never** evaluated or executed on the client or backend.
+  - API keys are held strictly in React runtime memory; they are **never** persisted to `localStorage`, `sessionStorage`, cookies, or disks.
+  - Clear visual privacy badges in the UI distinguish **Local &bull; Private** from **Cloud AI &bull; Gemini**.
+  - User code and API credentials are never logged to console or backend logs.
+  - Ollama offline warnings are shown **only** when Ollama is the active provider.
+- **Developer Experience**:
+  - CodeMirror 6 split-pane editors with syntax highlighting, line numbers, and drag-and-drop file upload.
+  - Custom instruction constraints (e.g., `"use async/await"`, `"prefer arrow functions"`).
+  - Detailed explanation card describing idiomatic transformations and warnings.
+  - Global `Ctrl+Enter` shortcut to trigger translation from anywhere in the interface.
 
 ---
 
@@ -28,13 +42,15 @@ OCB/
 │   │   ├── components/
 │   │   │   ├── Header.tsx
 │   │   │   ├── StatusBadge.tsx
+│   │   │   ├── ProviderSettingsModal.tsx
 │   │   │   ├── LanguageSelector.tsx
 │   │   │   ├── InstructionsInput.tsx
 │   │   │   ├── FileUploader.tsx
 │   │   │   ├── CodeEditor.tsx
 │   │   │   ├── OutputPanel.tsx
 │   │   │   ├── ExplanationCard.tsx
-│   │   │   └── ErrorBanner.tsx
+│   │   │   ├── ErrorBanner.tsx
+│   │   │   └── editorTheme.ts
 │   │   ├── services/
 │   │   │   └── api.ts
 │   │   ├── types/
@@ -46,8 +62,7 @@ OCB/
 │   ├── index.html
 │   ├── package.json
 │   ├── tsconfig.json
-│   ├── vite.config.ts
-│   └── .env.example
+│   └── vite.config.ts
 ├── backend/
 │   ├── app/
 │   │   ├── api/
@@ -62,6 +77,7 @@ OCB/
 │   │   │   └── translators/
 │   │   │       ├── __init__.py
 │   │   │       ├── base.py
+│   │   │       ├── gemini.py
 │   │   │       ├── mock.py
 │   │   │       └── ollama.py
 │   │   ├── config.py
@@ -69,6 +85,7 @@ OCB/
 │   ├── tests/
 │   │   ├── __init__.py
 │   │   ├── conftest.py
+│   │   ├── test_gemini_provider.py
 │   │   ├── test_health.py
 │   │   ├── test_mock_translation.py
 │   │   ├── test_provider_status.py
@@ -88,7 +105,8 @@ OCB/
 ### Prerequisites
 - Python 3.10+ (tested on Python 3.14)
 - Node.js 18+ (tested on Node.js v24)
-- [Ollama](https://ollama.com) (optional for running the app, required for live AI translation)
+- [Ollama](https://ollama.com) *(Optional — required only for local offline AI models)*
+- Google Gemini API key *(Optional — free keys available at [Google AI Studio](https://aistudio.google.com))*
 
 ---
 
@@ -100,27 +118,28 @@ Open a PowerShell terminal in the project root:
 # Navigate to backend directory
 cd backend
 
-# (Optional) Create and activate a virtual environment:
+# Create and activate virtual environment
 python -m venv .venv
-.venv\Scripts\Activate.ps1
+.\.venv\Scripts\Activate.ps1
 
-# Install requirements
+# Install dependencies
 pip install -r requirements.txt
 
-# Start the FastAPI server
-uvicorn app.main:app --reload --port 8000
+# Start FastAPI backend
+python -m uvicorn app.main:app --reload --port 8000
 ```
 
-The backend will be available at:
-- **API Health**: `http://localhost:8000/api/health`
+The backend runs at `http://127.0.0.1:8000`:
+- **API Health Check**: `http://localhost:8000/api/health`
 - **Provider Status**: `http://localhost:8000/api/providers/status`
-- **Interactive OpenAPI Docs**: `http://localhost:8000/docs`
+- **Test Provider Connection**: `POST http://localhost:8000/api/providers/test`
+- **Interactive OpenAPI Documentation**: `http://localhost:8000/docs`
 
 ---
 
 ### 2. Frontend Setup
 
-In a separate PowerShell terminal:
+In a second PowerShell terminal:
 
 ```powershell
 # Navigate to frontend directory
@@ -133,33 +152,33 @@ npm install
 npm run dev
 ```
 
-The frontend will start at `http://localhost:5173`. Open this URL in your browser.
+The frontend will open at `http://localhost:5173`.
 
 ---
 
-### 3. Setting Up Ollama (For Local AI Translation)
+### 3. Choosing Your AI Provider
 
-OCB defaults to the state-of-the-art coding model **`qwen2.5-coder:7b`** via Ollama:
+OCB gives you total freedom in how translation is executed:
 
-1. **Download and Install Ollama**:
-   Download installer from [https://ollama.com](https://ollama.com) and install it on Windows.
+1. **Google Gemini (Cloud AI)**:
+   - Click the provider status badge in the header or the **Provider** button in the toolbar.
+   - Select **Google Gemini**.
+   - Paste your Gemini API key (from [Google AI Studio](https://aistudio.google.com)).
+   - Select your preferred model (`gemini-1.5-flash`, `gemini-2.0-flash`, or `gemini-1.5-pro`).
+   - Click **Test Connection** to verify key validity against the API.
+   - Check the **Consent to transmit code** checkbox.
+   - Click **Apply & Use Provider**.
+   - *Note: Your key is held only in browser memory and is purged as soon as you close the tab or click "Clear API Key".*
 
-2. **Pull the Model**:
-   Open a terminal and run:
-   ```powershell
-   ollama pull qwen2.5-coder:7b
-   ```
-   *(Alternatively, for lighter hardware: `ollama pull qwen2.5-coder:1.5b` or `ollama pull codellama`)*
+2. **Local Ollama (Offline & Private)**:
+   - Install Ollama from [ollama.com](https://ollama.com).
+   - Pull the recommended model: `ollama pull qwen2.5-coder:7b`.
+   - In OCB, select **Local Ollama** in Provider Settings.
+   - The app communicates directly with `http://localhost:11434`.
 
-3. **Configure Custom Model (Optional)**:
-   If you wish to use a different model, set `OLLAMA_MODEL` in `backend/.env`:
-   ```ini
-   PROVIDER_TYPE=ollama
-   OLLAMA_BASE_URL=http://localhost:11434
-   OLLAMA_MODEL=qwen2.5-coder:7b
-   ```
-
-*Note: The application starts and runs cleanly even if Ollama is not installed or running. The UI will display the offline status with instructions.*
+3. **Mock Engine (Offline Testing)**:
+   - Select **Mock Engine** in Provider Settings.
+   - Instant deterministic translations without external network calls or local GPU dependencies.
 
 ---
 
@@ -167,17 +186,20 @@ OCB defaults to the state-of-the-art coding model **`qwen2.5-coder:7b`** via Oll
 
 ### Backend Tests (Pytest)
 ```powershell
-python -m pytest backend/tests -v
+.\backend\.venv\Scripts\python -m pytest backend/tests -v
 ```
 
-All 12 backend test cases run without needing Ollama:
-- Endpoint health and root route verification
-- Request schema validation (empty code, whitespace-only code, size bounds)
-- Unsupported and identical language pair rejections
-- Offline provider detection and graceful 503 response handling
-- Full bidirectional Python <-> JavaScript translation via mock provider
+All 24 test cases run offline without requiring external network connections or a running Ollama daemon:
+- Health and root endpoint verification
+- Schema validations (empty code, whitespace rejection, size bounds)
+- Provider status check and tag normalization
+- Gemini consent requirement validation
+- Gemini missing key validation
+- Gemini mock-assisted translations (Python &rarr; JS and JS &rarr; Python)
+- Gemini rate-limit and quota error mapping
+- Provider connection test endpoint tests
 
-### Frontend Typecheck & Build
+### Frontend Build & Typecheck
 ```powershell
 cd frontend
 npm run build
@@ -185,9 +207,10 @@ npm run build
 
 ---
 
-## Security & Privacy Policy
+## Security & Privacy Architecture
 
-- **No Code Execution**: Neither frontend nor backend ever evaluates, executes, or runs translated or uploaded code.
-- **No Third-Party Transmission**: All AI inference executes locally via Ollama. Code is not transmitted to external cloud APIs.
-- **Safe Logging**: User code and instructions are stripped from server log outputs.
-- **Model Disclaimers**: Machine-generated translations may contain subtle semantic differences. Always review generated code prior to production use.
+- **Untrusted Code Is Never Executed**: Code submitted for translation is treated strictly as plain text. Neither client nor backend executes Python or JavaScript snippets.
+- **Zero Disk Persistence of Secrets**: User API keys are maintained exclusively in memory in React component state. They are never saved to `localStorage`, `sessionStorage`, indexedDB, cookies, or backend databases.
+- **Prominent Purge Control**: Users can instantly clear their API key with one click in the Provider Settings dialog.
+- **Explicit Cloud Consent**: Cloud requests to Google Gemini are prevented until the user explicitly checks the data transmission disclosure.
+- **Safe Logging**: The FastAPI backend redacts API keys and suppresses full code bodies from application logs.

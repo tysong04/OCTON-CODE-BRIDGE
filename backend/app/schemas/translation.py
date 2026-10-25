@@ -8,6 +8,29 @@ class Language(str, Enum):
     JAVASCRIPT = "javascript"
 
 
+class ProviderConfig(BaseModel):
+    provider: str = Field(
+        default="ollama",
+        description="Translation provider: 'ollama', 'gemini', or 'mock'"
+    )
+    api_key: Optional[str] = Field(
+        default=None,
+        description="User-supplied API key for cloud services (held in memory only, never persisted)"
+    )
+    model: Optional[str] = Field(
+        default=None,
+        description="Configured model name (e.g. 'gemini-1.5-flash', 'qwen2.5-coder:7b')"
+    )
+    base_url: Optional[str] = Field(
+        default=None,
+        description="Optional custom base URL for Ollama service"
+    )
+    consent_granted: bool = Field(
+        default=False,
+        description="Explicit user consent to transmit code to external cloud AI service"
+    )
+
+
 class TranslationRequest(BaseModel):
     source_lang: Language = Field(
         ...,
@@ -27,6 +50,10 @@ class TranslationRequest(BaseModel):
         default=None,
         max_length=1000,
         description="Optional guidance or constraints (e.g., 'use async/await')"
+    )
+    provider_config: Optional[ProviderConfig] = Field(
+        default=None,
+        description="Optional user-specified provider configuration"
     )
 
     @field_validator("code")
@@ -70,6 +97,22 @@ class ProviderStatusResponse(BaseModel):
     model: str
     details: str
     setup_instructions: Optional[str] = None
+
+
+class ProviderTestRequest(BaseModel):
+    provider: str = Field(..., description="'ollama', 'gemini', or 'mock'")
+    api_key: Optional[str] = Field(default=None, description="API key to validate (if cloud provider)")
+    model: Optional[str] = Field(default=None, description="Model to check")
+    base_url: Optional[str] = Field(default=None, description="Custom base URL for Ollama")
+
+
+class ProviderTestResponse(BaseModel):
+    valid: bool
+    provider: str
+    model: str
+    message: str
+    details: Optional[str] = None
+    error_type: Optional[str] = None
 
 
 class HealthResponse(BaseModel):

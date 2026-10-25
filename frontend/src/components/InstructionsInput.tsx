@@ -1,5 +1,5 @@
 import React from 'react';
-import { Sliders } from 'lucide-react';
+import { SlidersHorizontal, X } from 'lucide-react';
 
 interface InstructionsInputProps {
   value: string;
@@ -13,18 +13,30 @@ export const InstructionsInput: React.FC<InstructionsInputProps> = ({
   disabled = false,
 }) => {
   return (
-    <div className="instructions-bar">
-      <div className="instructions-input-wrapper">
-        <Sliders size={16} />
+    <div className="workspace-instructions-bar">
+      <div className="instructions-inner">
+        <SlidersHorizontal size={14} className="instructions-leading-icon" aria-hidden="true" />
         <input
           type="text"
-          className="instructions-input"
-          placeholder="Optional translation instructions (e.g., 'use async/await', 'prefer arrow functions', 'explain any assumptions')..."
+          className="instructions-input-field"
+          placeholder="Optional translation constraints (e.g. 'use async/await', 'prefer arrow functions', 'strict types')..."
           value={value}
           maxLength={1000}
           disabled={disabled}
           onChange={(e) => onChange(e.target.value)}
+          aria-label="Optional translation instructions"
         />
+        {value && !disabled && (
+          <button
+            type="button"
+            className="btn-clear-instructions"
+            onClick={() => onChange('')}
+            title="Clear instructions"
+            aria-label="Clear instructions"
+          >
+            <X size={13} />
+          </button>
+        )}
       </div>
     </div>
   );

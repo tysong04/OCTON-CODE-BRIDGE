@@ -1,5 +1,5 @@
 import React from 'react';
-import { AlertCircle, Terminal, X } from 'lucide-react';
+import { AlertCircle, Terminal, X, Copy, Check } from 'lucide-react';
 import { ApiError } from '../types/translation';
 
 interface ErrorBannerProps {
@@ -8,33 +8,54 @@ interface ErrorBannerProps {
 }
 
 export const ErrorBanner: React.FC<ErrorBannerProps> = ({ error, onDismiss }) => {
+  const [copied, setCopied] = React.useState(false);
+
   if (!error) return null;
 
+  const handleCopyInstructions = () => {
+    if (!error.setup_instructions) return;
+    navigator.clipboard.writeText(error.setup_instructions);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
   return (
-    <div className="banner error">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-        <div className="banner-header">
-          <AlertCircle size={18} />
-          <span>{error.error_type || 'Translation Error'}</span>
+    <div className="system-callout-banner banner-danger" role="alert">
+      <div className="banner-top-row">
+        <div className="banner-title-group">
+          <AlertCircle size={15} className="banner-leading-icon" />
+          <span className="banner-title">{error.error_type || 'Translation Error'}</span>
         </div>
         <button
           onClick={onDismiss}
-          style={{ color: 'inherit', padding: '0.2rem', opacity: 0.8 }}
-          title="Dismiss"
+          className="btn-banner-close"
+          title="Dismiss notification"
+          aria-label="Dismiss notification"
         >
-          <X size={16} />
+          <X size={14} />
         </button>
       </div>
 
-      <div>{error.message}</div>
+      <p className="banner-message">{error.message}</p>
 
       {error.setup_instructions && (
-        <div style={{ marginTop: '0.5rem' }}>
-          <div style={{ fontSize: '0.8rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.35rem', marginBottom: '0.3rem' }}>
-            <Terminal size={14} />
-            <span>Setup Instructions:</span>
+        <div className="banner-setup-guide">
+          <div className="setup-guide-header">
+            <Terminal size={13} />
+            <span>Setup Guide</span>
+            <button
+              type="button"
+              className="btn-copy-instructions"
+              onClick={handleCopyInstructions}
+              title="Copy setup commands"
+            >
+              {copied ? <Check size={11} color="var(--accent-emerald)" /> : <Copy size={11} />}
+              <span>{copied ? 'Copied' : 'Copy Commands'}</span>
+            </button>
           </div>
-          <div className="banner-code">{error.setup_instructions}</div>
+          <pre className="banner-code-block">
+            <code>{error.setup_instructions}</code>
+          </pre>
         </div>
       )}
     </div>

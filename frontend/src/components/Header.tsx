@@ -1,13 +1,15 @@
 import React from 'react';
-import { Code2 } from 'lucide-react';
+import { Binary } from 'lucide-react';
 import { StatusBadge } from './StatusBadge';
-import { HealthResponse, ProviderStatusResponse } from '../types/translation';
+import { HealthResponse, ProviderStatusResponse, ProviderConfig } from '../types/translation';
 
 interface HeaderProps {
   backendHealth: HealthResponse | null;
   providerStatus: ProviderStatusResponse | null;
   isLoadingStatus: boolean;
   onRefreshStatus: () => void;
+  currentProviderConfig: ProviderConfig;
+  onOpenSettings: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -15,20 +17,24 @@ export const Header: React.FC<HeaderProps> = ({
   providerStatus,
   isLoadingStatus,
   onRefreshStatus,
+  currentProviderConfig,
+  onOpenSettings,
 }) => {
   return (
-    <header className="app-header">
-      <div className="brand-section">
-        <div className="brand-logo">
-          <Code2 size={24} />
+    <header className="workspace-header">
+      <div className="brand-lockup">
+        <div className="brand-symbol" aria-hidden="true">
+          <Binary size={18} />
         </div>
-        <div>
-          <div className="brand-title">
-            OCB <span className="brand-badge">Octon Code Bridge</span>
+        <div className="brand-text">
+          <div className="brand-heading">
+            <span className="brand-acronym">OCB</span>
+            <span className="brand-divider">/</span>
+            <span className="brand-name">Octon Code Bridge</span>
           </div>
-          <p className="brand-description">
-            Private, local AI-powered code translator between Python and JavaScript
-          </p>
+          <span className="brand-subtitle">
+            Local &amp; Cloud Python ⇄ JavaScript bidirectional translation
+          </span>
         </div>
       </div>
 
@@ -37,6 +43,8 @@ export const Header: React.FC<HeaderProps> = ({
         providerStatus={providerStatus}
         isLoading={isLoadingStatus}
         onRefresh={onRefreshStatus}
+        currentProviderConfig={currentProviderConfig}
+        onOpenSettings={onOpenSettings}
       />
     </header>
   );

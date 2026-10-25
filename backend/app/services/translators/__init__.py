@@ -6,6 +6,7 @@ from .base import (
 )
 from .mock import MockTranslationProvider
 from .ollama import OllamaTranslationProvider
+from .gemini import GeminiTranslationProvider
 
 __all__ = [
     "BaseTranslationProvider",
@@ -14,4 +15,5 @@ __all__ = [
     "TranslationExecutionError",
     "MockTranslationProvider",
     "OllamaTranslationProvider",
+    "GeminiTranslationProvider",
 ]

@@ -5,6 +5,8 @@ from app.schemas.translation import (
     TranslationRequest,
     TranslationResponse,
     ProviderStatusResponse,
+    ProviderTestRequest,
+    ProviderTestResponse,
     HealthResponse,
 )
 from app.services.translation_service import TranslationService, get_translation_service
@@ -33,6 +35,20 @@ async def provider_status(
 ) -> ProviderStatusResponse:
     """Check translation provider daemon connectivity and model availability."""
     return await service.get_status()
+
+
+@router.post(
+    "/providers/test",
+    response_model=ProviderTestResponse,
+    status_code=status.HTTP_200_OK,
+    tags=["Provider"]
+)
+async def test_provider_connection(
+    request: ProviderTestRequest,
+    service: TranslationService = Depends(get_translation_service)
+) -> ProviderTestResponse:
+    """Test credentials, models, and connectivity for a user-specified provider without translating code."""
+    return await service.test_provider(request)
 
 
 @router.post(

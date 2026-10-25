@@ -1,6 +1,8 @@
 import {
   HealthResponse,
   ProviderStatusResponse,
+  ProviderTestRequest,
+  ProviderTestResponse,
   TranslationRequest,
   TranslationResponse,
 } from '../types/translation';
@@ -49,6 +51,37 @@ export async function getProviderStatus(): Promise<ProviderStatusResponse> {
       model: 'unknown',
       details: errorMsg,
       setup_instructions: 'Ensure the backend server is running on port 8000.',
+    };
+  }
+}
+
+export async function testProvider(req: ProviderTestRequest): Promise<ProviderTestResponse> {
+  try {
+    const res = await fetch(`${BASE_URL}/api/providers/test`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(req),
+    });
+    if (!res.ok) {
+      return {
+        valid: false,
+        provider: req.provider,
+        model: req.model || '',
+        message: `Connection test endpoint returned HTTP ${res.status}`,
+        error_type: 'HttpError',
+      };
+    }
+    return await res.json();
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : 'Network error';
+    return {
+      valid: false,
+      provider: req.provider,
+      model: req.model || '',
+      message: `Failed to connect to backend server: ${msg}`,
+      error_type: 'NetworkError',
     };
   }
 }

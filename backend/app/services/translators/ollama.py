@@ -17,6 +17,35 @@ from app.services.translators.base import (
 logger = logging.getLogger("ocb.translators.ollama")
 
 
+def normalize_ollama_tag(tag: str) -> tuple[str, str]:
+    """
+    Normalizes an Ollama model identifier into a (model_name, tag) tuple.
+    
+    Examples:
+      'qwen2.5-coder:7b'                            -> ('qwen2.5-coder', '7b')
+      'qwen2.5-coder'                               -> ('qwen2.5-coder', 'latest')
+      'registry.ollama.ai/library/qwen2.5-coder:7b' -> ('qwen2.5-coder', '7b')
+      'library/qwen2.5-coder:latest'                -> ('qwen2.5-coder', 'latest')
+    """
+    clean = tag.strip().lower()
+    if "/" in clean:
+        clean = clean.split("/")[-1]
+    if ":" in clean:
+        name, version = clean.split(":", 1)
+        return name.strip(), version.strip()
+    return clean.strip(), "latest"
+
+
+def matches_ollama_model(configured_model: str, available_model: str) -> bool:
+    """
+    Determines whether an available Ollama model tag matches the configured model,
+    avoiding false positives from partial substring matches (e.g. 7b vs 1.5b).
+    """
+    conf_name, conf_tag = normalize_ollama_tag(configured_model)
+    avail_name, avail_tag = normalize_ollama_tag(available_model)
+    return conf_name == avail_name and conf_tag == avail_tag
+
+
 class OllamaTranslationProvider(BaseTranslationProvider):
     def __init__(
         self,
@@ -58,10 +87,9 @@ class OllamaTranslationProvider(BaseTranslationProvider):
                 # Tag names might be e.g. "qwen2.5-coder:7b" or "qwen2.5-coder:latest"
                 available_model_names = [m.get("name", "") for m in models]
 
-                # Check if exact model or base name exists
-                model_base = self.model.split(":")[0]
+                # Check if configured model matches any available models using normalized tags
                 has_model = any(
-                    self.model in name or (model_base in name)
+                    matches_ollama_model(self.model, name)
                     for name in available_model_names
                 )
 
