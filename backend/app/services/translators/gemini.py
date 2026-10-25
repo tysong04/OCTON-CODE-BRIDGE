@@ -17,6 +17,7 @@ from app.services.translators.base import (
     ProviderUnavailableError,
     TranslationExecutionError,
 )
+from app.services.translators.policy import build_translation_prompt
 
 logger = logging.getLogger("ocb.translators.gemini")
 
@@ -312,20 +313,11 @@ class GeminiTranslationProvider(BaseTranslationProvider):
         code: str,
         instructions: Optional[str]
     ) -> str:
-        guidance = instructions.strip() if instructions else "Produce clean, idiomatic, and modern code."
-        return (
-            f"You are an expert compiler engineer and software architect specializing in translating between {source_lang.value} and {target_lang.value}.\n"
-            f"Task: Translate the given {source_lang.value} source code snippet into clean, idiomatic {target_lang.value}.\n\n"
-            f"User constraints / instructions: {guidance}\n\n"
-            f"Respond strictly with valid JSON conforming to the following schema:\n"
-            f"{{\n"
-            f'  "translated_code": "string containing pure translated code",\n'
-            f'  "explanation": "concise overview of key language idiom changes and assumptions",\n'
-            f'  "warnings": ["list of important behavioral caveats, missing library equivalents, or type differences"]\n'
-            f"}}\n\n"
-            f"--- SOURCE CODE ({source_lang.value}) ---\n"
-            f"{code}\n"
-            f"--- END SOURCE CODE ---\n"
+        return build_translation_prompt(
+            source_lang=source_lang,
+            target_lang=target_lang,
+            code=code,
+            instructions=instructions
         )
 
     def _parse_response(

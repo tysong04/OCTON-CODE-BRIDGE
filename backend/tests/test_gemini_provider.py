@@ -3,6 +3,8 @@ import pytest
 from unittest.mock import patch, MagicMock
 from fastapi.testclient import TestClient
 import httpx
+from app.schemas.translation import Language
+from app.services.translators.gemini import GeminiTranslationProvider
 
 
 def test_gemini_missing_consent_rejected(client: TestClient):
@@ -306,5 +308,37 @@ async def test_provider_test_endpoint_gemini_invalid_key_400(client: TestClient)
         assert data["valid"] is False
         assert data["error_type"] == "InvalidApiKey"
         assert "invalid" in data["message"].lower()
+
+
+def test_gemini_build_prompt_enforces_strict_faithful_policy():
+    """
+    Verify that the Gemini translation provider constructs prompts
+    enforcing OCB Translation Policy v1.0.0 and preserves user code verbatim.
+    """
+    provider = GeminiTranslationProvider(api_key="AIzaFakeKey123")
+    sample_code = (
+        "# WARNINGG: do NOT fix this speling typo! ?? ::\n"
+        "def calcualte(a, b):\n"
+        '    msg = "Errror: unexpexted FoObAr condishun"\n'
+        "    if a < 10:\n"
+        "        return a - b\n"
+    )
+    prompt = provider._build_prompt(
+        source_lang=Language.PYTHON,
+        target_lang=Language.JAVASCRIPT,
+        code=sample_code,
+        instructions="use async/await"
+    )
+
+    # Must contain authoritative policy declarations
+    assert "STRICT TRANSLATION POLICY (VERSION 1.0.0)" in prompt
+    assert "OCB is a TRANSLATOR, NOT a code fixer, optimizer, refactorer" in prompt
+    assert "PRESERVE ALL USER-AUTHORED CONTENT" in prompt
+    assert "SEPARATE TRANSLATION FROM DIAGNOSTICS" in prompt
+    assert "Do NOT fix bugs, do NOT correct typos in strings or comments" in prompt
+    assert "use async/await" in prompt
+
+    # Must contain verbatim source code
+    assert sample_code in prompt
 
 

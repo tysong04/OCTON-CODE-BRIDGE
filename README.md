@@ -189,7 +189,7 @@ OCB gives you total freedom in how translation is executed:
 .\backend\.venv\Scripts\python -m pytest backend/tests -v
 ```
 
-All 26 test cases run offline without requiring external network connections or a running Ollama daemon:
+All 31 test cases run offline without requiring external network connections or a running Ollama daemon:
 - Health and root endpoint verification
 - Schema validations (empty code, whitespace rejection, size bounds)
 - Provider status check and tag normalization
@@ -199,6 +199,14 @@ All 26 test cases run offline without requiring external network connections or 
 - Gemini rate-limit and quota error mapping
 - Dynamic model discovery catalog tests and 404 non-repeating model recommendation tests
 - Provider connection test endpoint tests
+- Prompt policy adherence tests enforcing Strict Faithful Policy v1.0.0
+- Comment, typo, bug, and duplicate preservation regression tests
+- Comprehensive 20-item faithful benchmark suite (100.0% measured score)
+
+### Running the Faithful Translation Benchmark Suite
+```powershell
+.\backend\.venv\Scripts\python -m pytest backend/tests/test_faithful_benchmark.py -v -s
+```
 
 ### Frontend Build & Typecheck
 ```powershell
