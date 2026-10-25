@@ -15,7 +15,8 @@ from app.services.translators.base import (
 
 logger = logging.getLogger("ocb.translators.gemini")
 
-DEFAULT_GEMINI_MODEL = "gemini-1.5-flash"
+DEFAULT_GEMINI_MODEL = "gemini-2.5-flash"
+SUPPORTED_MODELS = ["gemini-2.5-flash", "gemini-2.5-pro", "gemini-flash-latest"]
 GEMINI_API_BASE = "https://generativelanguage.googleapis.com/v1beta"
 
 
@@ -101,7 +102,7 @@ class GeminiTranslationProvider(BaseTranslationProvider):
                         provider="gemini",
                         model=self.model,
                         message=f"Model '{self.model}' not found in Gemini API.",
-                        details="Supported models include 'gemini-1.5-flash', 'gemini-2.0-flash', 'gemini-1.5-pro'.",
+                        details=f"Supported models include: {', '.join(SUPPORTED_MODELS)}.",
                         error_type="ModelNotFound"
                     )
                 elif res.status_code == 429:
@@ -142,12 +143,13 @@ class GeminiTranslationProvider(BaseTranslationProvider):
                 error_type="Timeout"
             )
         except Exception as e:
+            logger.exception("Unexpected error during Gemini connection test")
             return ProviderTestResponse(
                 valid=False,
                 provider="gemini",
                 model=self.model,
-                message=f"Connection test failed: {type(e).__name__}",
-                details=str(e),
+                message="Connection test failed due to an unexpected error.",
+                details=f"Error type: {type(e).__name__}",
                 error_type="UnexpectedError"
             )
 
@@ -240,6 +242,10 @@ class GeminiTranslationProvider(BaseTranslationProvider):
             raise TranslationExecutionError(
                 "Google Gemini request forbidden or quota suspended for this API key."
             )
+        elif res.status_code == 404:
+            raise TranslationExecutionError(
+                f"Configured Gemini model '{self.model}' was not found. Please select a supported model such as 'gemini-2.5-flash'."
+            )
         elif res.status_code == 429:
             raise TranslationExecutionError(
                 "Google Gemini API rate limit or quota exceeded. Please wait a moment before trying again."
@@ -250,7 +256,7 @@ class GeminiTranslationProvider(BaseTranslationProvider):
             )
         else:
             raise TranslationExecutionError(
-                f"Gemini API returned error HTTP {res.status_code}: {res.text[:200]}"
+                f"Gemini API returned an unexpected error (HTTP {res.status_code})."
             )
 
     def _build_prompt(

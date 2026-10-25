@@ -28,9 +28,9 @@ interface ProviderSettingsModalProps {
 }
 
 const GEMINI_MODELS = [
-  { id: 'gemini-1.5-flash', label: 'Gemini 1.5 Flash (Recommended - Fast & Lightweight)' },
-  { id: 'gemini-2.0-flash', label: 'Gemini 2.0 Flash (Next-gen Fast Model)' },
-  { id: 'gemini-1.5-pro', label: 'Gemini 1.5 Pro (Complex code reasoning)' },
+  { id: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash (Recommended - Fast & Accurate Code Translation)' },
+  { id: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro (Deep Code Reasoning & Architecture)' },
+  { id: 'gemini-flash-latest', label: 'Gemini Flash Latest (Dynamic Alias)' },
 ];
 
 export const ProviderSettingsModal: React.FC<ProviderSettingsModalProps> = ({
@@ -44,7 +44,7 @@ export const ProviderSettingsModal: React.FC<ProviderSettingsModalProps> = ({
   const [apiKey, setApiKey] = useState<string>(config.api_key || '');
   const [showApiKey, setShowApiKey] = useState<boolean>(false);
   const [geminiModel, setGeminiModel] = useState<string>(
-    config.provider === 'gemini' && config.model ? config.model : 'gemini-1.5-flash'
+    config.provider === 'gemini' && config.model ? config.model : 'gemini-2.5-flash'
   );
   const [ollamaBaseUrl, setOllamaBaseUrl] = useState<string>(
     config.base_url || 'http://localhost:11434'

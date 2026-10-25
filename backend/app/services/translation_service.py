@@ -68,7 +68,7 @@ class TranslationService:
                 )
             return GeminiTranslationProvider(
                 api_key=config.api_key,
-                model=config.model or "gemini-1.5-flash",
+                model=config.model or "gemini-2.5-flash",
                 timeout=settings.OLLAMA_TIMEOUT_SECONDS
             )
 
@@ -98,14 +98,14 @@ class TranslationService:
                 return ProviderTestResponse(
                     valid=False,
                     provider="gemini",
-                    model=req.model or "gemini-1.5-flash",
+                    model=req.model or "gemini-2.5-flash",
                     message="API key is required.",
                     details="Please enter your Google Gemini API key.",
                     error_type="MissingApiKey"
                 )
             gemini_provider = GeminiTranslationProvider(
                 api_key=req.api_key,
-                model=req.model or "gemini-1.5-flash"
+                model=req.model or "gemini-2.5-flash"
             )
             return await gemini_provider.test_connection()
 

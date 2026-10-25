@@ -95,7 +95,7 @@ async def test_gemini_successful_mocked_translation(client: TestClient):
             "provider_config": {
                 "provider": "gemini",
                 "api_key": "valid-test-key-xyz",
-                "model": "gemini-1.5-flash",
+                "model": "gemini-2.5-flash",
                 "consent_granted": True
             }
         }
@@ -104,7 +104,7 @@ async def test_gemini_successful_mocked_translation(client: TestClient):
         data = response.json()
         assert data["translated_code"] == "console.log('hello from gemini');"
         assert data["provider_info"]["provider"] == "gemini"
-        assert data["provider_info"]["model"] == "gemini-1.5-flash"
+        assert data["provider_info"]["model"] == "gemini-2.5-flash"
         assert data["provider_info"]["verified"] is False
 
 
@@ -122,7 +122,7 @@ async def test_gemini_rate_limit_handled(client: TestClient):
             "provider_config": {
                 "provider": "gemini",
                 "api_key": "valid-test-key-xyz",
-                "model": "gemini-1.5-flash",
+                "model": "gemini-2.5-flash",
                 "consent_granted": True
             }
         }
@@ -181,7 +181,7 @@ async def test_gemini_javascript_to_python_translation(client: TestClient):
             "provider_config": {
                 "provider": "gemini",
                 "api_key": "valid-test-key-xyz",
-                "model": "gemini-2.0-flash",
+                "model": "gemini-2.5-pro",
                 "consent_granted": True
             }
         }
@@ -190,7 +190,7 @@ async def test_gemini_javascript_to_python_translation(client: TestClient):
         data = response.json()
         assert "def greet" in data["translated_code"]
         assert data["provider_info"]["provider"] == "gemini"
-        assert data["provider_info"]["model"] == "gemini-2.0-flash"
+        assert data["provider_info"]["model"] == "gemini-2.5-pro"
 
 
 @pytest.mark.asyncio
@@ -198,8 +198,8 @@ async def test_provider_test_endpoint_gemini_valid_key(client: TestClient):
     mock_resp = MagicMock(spec=httpx.Response)
     mock_resp.status_code = 200
     mock_resp.json.return_value = {
-        "name": "models/gemini-1.5-flash",
-        "displayName": "Gemini 1.5 Flash",
+        "name": "models/gemini-2.5-flash",
+        "displayName": "Gemini 2.5 Flash",
         "supportedGenerationMethods": ["generateContent"]
     }
 
@@ -207,7 +207,7 @@ async def test_provider_test_endpoint_gemini_valid_key(client: TestClient):
         payload = {
             "provider": "gemini",
             "api_key": "AIzaSyFakeValidKey123",
-            "model": "gemini-1.5-flash"
+            "model": "gemini-2.5-flash"
         }
         response = client.post("/api/providers/test", json=payload)
         assert response.status_code == 200
@@ -227,7 +227,7 @@ async def test_provider_test_endpoint_gemini_invalid_key_400(client: TestClient)
         payload = {
             "provider": "gemini",
             "api_key": "invalid-bad-key",
-            "model": "gemini-1.5-flash"
+            "model": "gemini-2.5-flash"
         }
         response = client.post("/api/providers/test", json=payload)
         assert response.status_code == 200
